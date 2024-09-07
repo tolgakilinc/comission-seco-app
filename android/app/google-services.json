@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "334998744642",
+    "project_id": "seco-app-86863",
+    "storage_bucket": "seco-app-86863.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:334998744642:android:f2ed7f8b203240398647db",
+        "android_client_info": {
+          "package_name": "com.example.seco_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtjkGwh87dRwCohVfNUxtkM0CyytVz3m8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
