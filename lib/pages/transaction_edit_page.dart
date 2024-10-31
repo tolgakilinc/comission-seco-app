@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:seco_app/service/transaction_service.dart';
 import 'package:seco_app/service/product_service.dart';
+import 'package:intl/intl.dart'; // Tarih formatlamak için
+import 'package:motion_toast/motion_toast.dart'; // Toast mesajı için
 
 class TransactionEditPage extends StatefulWidget {
   final String? transactionId;
@@ -18,16 +20,18 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
 
   String? selectedCustomerId;
   String? selectedProductId;
-  String? transactionType;
+  String? transactionType = 'Alış'; // Varsayılan olarak 'Alış' seçildi
   String? paymentType;
   String? status;
   String? unit;
   double? transactionAmount;
   double? price;
   double totalPrice = 0.0;
+  DateTime collectionDate = DateTime.now(); // Varsayılan olarak bugünkü tarih
 
   final TextEditingController amountController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
+  final TextEditingController dateController = TextEditingController();
 
   @override
   void initState() {
@@ -35,13 +39,14 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
     if (widget.transactionId != null) {
       _loadTransactionData();
     }
+    dateController.text = DateFormat('yyyy-MM-dd').format(collectionDate); // Varsayılan tarih formatlandı
   }
 
   // Düzenleme modundaysa işlem verilerini getir ve formu doldur
   Future<void> _loadTransactionData() async {
     try {
       DocumentSnapshot transaction = await _transactionService.getTransactionById(widget.transactionId!);
-      
+
       if (transaction.exists) {
         setState(() {
           selectedCustomerId = transaction['customer_id'];
@@ -52,6 +57,8 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
           transactionAmount = transaction['amount'];
           price = transaction['price'];
           totalPrice = transaction['total_price'];
+          collectionDate = (transaction['collection_date'] as Timestamp).toDate(); // Tahsilat tarihini al
+          dateController.text = DateFormat('yyyy-MM-dd').format(collectionDate); // Tarih formatlanıp gösteriliyor
 
           amountController.text = transactionAmount?.toString() ?? '';
           priceController.text = price?.toString() ?? '';
@@ -83,6 +90,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
       final productPrices = await _productService.getProductPrices(productId);
       setState(() {
         selectedProductId = productId;
+        // İşlem türüne göre fiyatları güncelleyerek formu dinamik hale getir
         if (transactionType == 'Satış') {
           price = productPrices['sale_price'];
         } else {
@@ -99,11 +107,37 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
     }
   }
 
+  // İşlem türü değiştiğinde fiyatları güncelle
+  void _onTransactionTypeChanged(String? newType) {
+    setState(() {
+      transactionType = newType;
+      if (selectedProductId != null) {
+        _onProductSelected(selectedProductId!); // Ürün seçildiyse fiyatları günceller
+      }
+    });
+  }
+
   // Toplam fiyatı hesapla
   void _calculateTotalPrice() {
     if (transactionAmount != null && price != null) {
       setState(() {
         totalPrice = price! * transactionAmount!;
+      });
+    }
+  }
+
+  // Tarih seçici
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: collectionDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != collectionDate) {
+      setState(() {
+        collectionDate = picked;
+        dateController.text = DateFormat('yyyy-MM-dd').format(picked);
       });
     }
   }
@@ -128,14 +162,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
                 items: ['Alış', 'Satış'],
                 value: transactionType,
                 label: 'İşlem Türü',
-                onChanged: (value) {
-                  setState(() {
-                    transactionType = value;
-                    if (selectedProductId != null) {
-                      _onProductSelected(selectedProductId!);
-                    }
-                  });
-                },
+                onChanged: _onTransactionTypeChanged, // İşlem türü değiştiğinde tetiklenir
               ),
               const SizedBox(height: 10),
               _buildDropdown(
@@ -150,6 +177,13 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
                 value: status,
                 label: 'Ödeme Durumu',
                 onChanged: (value) => setState(() => status = value),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: dateController,
+                decoration: const InputDecoration(labelText: 'Tahsilat Tarihi'),
+                readOnly: true,
+                onTap: () => _selectDate(context), // Tarih seçici açılır
               ),
               const SizedBox(height: 10),
               TextField(
@@ -261,7 +295,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
   }
 
   // İşlemi kaydet
-  void _saveTransaction() {
+  void _saveTransaction() async {
     if (selectedCustomerId != null &&
         selectedProductId != null &&
         transactionType != null &&
@@ -269,6 +303,23 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
         status != null &&
         transactionAmount != null &&
         price != null) {
+      if (transactionType == 'Satış') {
+        // Stok kontrolü
+        bool isStockAvailable = await _productService.decreaseProductStock(
+          selectedProductId!,
+          transactionAmount!,
+        );
+        if (!isStockAvailable) {
+          // Eğer yeterli stok yoksa toast mesajı göster ve işlemi yapma
+          MotionToast.error(
+            description: const Text('Yeterli stok yok!'),
+            width: 300,
+          ).show(context);
+          return; // İşlemi durdur
+        }
+      }
+
+      // Stok yeterliyse işlemi kaydet
       if (widget.transactionId == null) {
         _transactionService.addTransaction(
           productId: selectedProductId!,
@@ -278,6 +329,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
           paymentType: paymentType!,
           status: status!,
           date: DateTime.now(),
+          collectionDate: collectionDate,  // Tahsilat tarihi kaydediliyor
           totalPrice: totalPrice,
           price: price!,  // Fiyat kaydediliyor
         );
@@ -291,36 +343,13 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
           paymentType: paymentType!,
           status: status!,
           date: DateTime.now(),
+          collectionDate: collectionDate,  // Tahsilat tarihi güncelleniyor
           totalPrice: totalPrice,
           price: price!,  // Fiyat güncelleniyor
         );
       }
-      Navigator.pop(context);
-    }
-  }
 
-  // İşlemi silmeden önce onay sor
-  void _confirmDeleteTransaction() async {
-    final confirmed = await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Silme İşlemi'),
-        content: const Text('Bu işlemi silmek istediğinizden emin misiniz?'),
-        actions: [
-          TextButton(
-            child: const Text('Hayır'),
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          TextButton(
-            child: const Text('Evet'),
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && widget.transactionId != null) {
-      _transactionService.deleteTransaction(widget.transactionId!);
+      // İşlem başarıyla kaydedildiğinde sayfa kapatılır
       Navigator.pop(context);
     }
   }

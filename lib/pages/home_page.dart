@@ -1,25 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Çıkış işlemi için
+import '../service/transaction_service.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
 
-  // Firestore'dan verileri toplu olarak çekme
-  Future<Map<String, int>> _getDashboardData() async {
-    int productsCount = (await FirebaseFirestore.instance.collection('products').get()).size;
-    int stockCount = (await FirebaseFirestore.instance.collection('stock').get()).size;
-    int customersCount = (await FirebaseFirestore.instance.collection('customers').get()).size;
-    int paymentsCount = (await FirebaseFirestore.instance.collection('payments').get()).size;
-    int transactionsCount = (await FirebaseFirestore.instance.collection('transactions').get()).size;
+  @override
+  _HomePageState createState() => _HomePageState();
+}
 
-    return {
-      'products': productsCount,
-      'stock': stockCount,
-      'customers': customersCount,
-      'payments': paymentsCount,
-      'transactions': transactionsCount,
-    };
+class _HomePageState extends State<HomePage> {
+  double totalIncome = 0;
+  double totalExpense = 0;
+  double totalProfit = 0;
+  bool hasAnnouncements = false; // Duyuru var mı kontrolü için
+
+  final TransactionService _transactionService = TransactionService();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTransactionData();
+    _checkForAnnouncements(); // Duyuru var mı kontrol et
+  }
+
+  // Firestore'dan verileri dinamik olarak çekme
+  Future<void> _fetchTransactionData() async {
+    try {
+      final QuerySnapshot snapshot = await FirebaseFirestore.instance.collection('transactions').get();
+      final transactions = snapshot.docs;
+
+      double income = 0;
+      double expense = 0;
+
+      for (var transaction in transactions) {
+        final transactionType = transaction['transaction_type'];
+        final amount = transaction['total_price'];
+
+        // Gelir ve gider hesaplaması
+        if (transactionType == 'Satış') {
+          income += amount;
+        } else if (transactionType == 'Alış') {
+          expense += amount;
+        }
+      }
+
+      // Kar hesaplaması (Gelir - Gider)
+      double profit = income - expense;
+
+      setState(() {
+        totalIncome = income;
+        totalExpense = expense;
+        totalProfit = profit;
+      });
+    } catch (e) {
+      print('Veri çekme hatası: $e');
+    }
+  }
+
+  // Duyuru kontrolü: Stokta olmayan ürünler ve 1 gün içinde ödemeler
+  Future<void> _checkForAnnouncements() async {
+    final zeroStockProducts = await _transactionService.getZeroStockProducts().first;
+    final upcomingPayments = await _transactionService.getUpcomingPayments(days: 1).first;
+
+    if (zeroStockProducts.docs.isNotEmpty || upcomingPayments.docs.isNotEmpty) {
+      setState(() {
+        hasAnnouncements = true; // Duyuru varsa true yap
+      });
+    }
   }
 
   @override
@@ -27,13 +77,14 @@ class HomePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Dashboard',
+          'Ana Sayfa',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 24,
           ),
         ),
         actions: [
+          // Çıkış butonu
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -44,38 +95,181 @@ class HomePage extends StatelessWidget {
               }
             },
           ),
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications),
+                onPressed: () {
+                  Navigator.pushNamed(context, '/announcements');
+                },
+              ),
+              if (hasAnnouncements)
+                Positioned(
+                  right: 11,
+                  top: 11,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 8,
+                      minHeight: 8,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: FutureBuilder<Map<String, int>>(
-            future: _getDashboardData(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (snapshot.hasError) {
-                return const Center(child: Text('Error loading data'));
-              } else if (!snapshot.hasData) {
-                return const Center(child: Text('No data available'));
-              } else {
-                final data = snapshot.data!;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildDashboardSummary(context, data),
-                    const SizedBox(height: 20),
-                    _buildMenuButtons(context),
-                  ],
-                );
-              }
-            },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Gelir, Gider ve Kar/Zarar Kutucukları
+              _buildSummaryCards(),
+              const SizedBox(height: 20),
+              // Menü Butonları
+              _buildMenuButtons(context),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Widget _buildSummaryCards() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            _buildSummaryCard('Gelir', totalIncome, Colors.purple.shade100, Colors.purple, Icons.arrow_downward),
+            const SizedBox(width: 10),
+            _buildSummaryCard('Gider', totalExpense, Colors.orange.shade100, Colors.orange, Icons.arrow_upward),
+          ],
+        ),
+        const SizedBox(height: 20),
+        // Gelir Kartı
+        _buildProfitCard(),
+      ],
+    );
+  }
+
+  // Kar ve Gelir kutucuğu
+  Widget _buildProfitCard() {
+    Color cardColor;
+    Color textColor;
+
+    if (totalProfit > 0) {
+      cardColor = Colors.green.shade100;
+      textColor = Colors.green;
+    } else if (totalProfit < 0) {
+      cardColor = Colors.red.shade100;
+      textColor = Colors.red;
+    } else {
+      cardColor = Colors.yellow.shade100;
+      textColor = Colors.yellow.shade700;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.attach_money, color: textColor),
+              const SizedBox(width: 10),
+              Text('Bakiye', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '₺${NumberFormat.currency(locale: 'tr_TR', symbol: '').format(totalProfit)}',
+            style: TextStyle(color: textColor, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Gelir ve Gider kutucukları için özet kartı
+  Widget _buildSummaryCard(String title, double amount, Color backgroundColor, Color iconColor, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: iconColor),
+                const SizedBox(width: 10),
+                Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '₺${NumberFormat.currency(locale: 'tr_TR', symbol: '').format(amount)}',
+              style: TextStyle(color: iconColor, fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Menüler için butonlar
+  Widget _buildMenuButtons(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+      crossAxisSpacing: 16,
+      mainAxisSpacing: 16,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _buildMenuButton(context, 'Ürünler', Icons.category, '/products'),
+        _buildMenuButton(context, 'Stok', Icons.storage, '/stock'),
+        _buildMenuButton(context, 'Müşteriler', Icons.people, '/customers'),
+        _buildMenuButton(context, 'Ödemeler', Icons.payment, '/payments'),
+        _buildMenuButton(context, 'İşlemler', Icons.swap_horiz, '/transactions'),
+      ],
+    );
+  }
+
+  Widget _buildMenuButton(BuildContext context, String title, IconData icon, String route) {
+    return Card(
+      elevation: 4,
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(context, route);
+        },
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 40),
+              const SizedBox(height: 10),
+              Text(title, style: const TextStyle(fontSize: 16)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Çıkış onayı için dialog
   Future<bool> _showLogoutConfirmationDialog(BuildContext context) async {
     return await showDialog(
       context: context,
@@ -99,102 +293,6 @@ class HomePage extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-
-  Widget _buildDashboardSummary(BuildContext context, Map<String, int> data) {
-    double screenWidth = MediaQuery.of(context).size.width;
-
-    return Wrap(
-      spacing: 12.0,
-      runSpacing: 12.0,
-      alignment: WrapAlignment.center,
-      children: [
-        _buildSummaryCard('Total Products', data['products']!, Colors.blue.shade100, Colors.blue, screenWidth),
-        _buildSummaryCard('Total Stock', data['stock']!, Colors.green.shade100, Colors.green, screenWidth),
-        _buildSummaryCard('Total Customers', data['customers']!, Colors.red.shade100, Colors.red, screenWidth),
-        _buildSummaryCard('Total Payments', data['payments']!, Colors.orange.shade100, Colors.orange, screenWidth),
-        _buildSummaryCard('Total Transactions', data['transactions']!, Colors.purple.shade100, Colors.purple, screenWidth),
-      ],
-    );
-  }
-
-  Widget _buildSummaryCard(String title, int count, Color backgroundColor, Color textColor, double screenWidth) {
-    double cardWidth = screenWidth > 600 ? (screenWidth / 3 - 24) : screenWidth * 0.9;
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        width: cardWidth,
-        height: 120,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: textColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '$count',
-              style: TextStyle(
-                color: textColor,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuButtons(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _buildMenuButton(context, 'Products', Icons.category, '/products'),
-        _buildMenuButton(context, 'Stock', Icons.storage, '/stock'),
-        _buildMenuButton(context, 'Customers', Icons.people, '/customers'),
-        _buildMenuButton(context, 'Payments', Icons.payment, '/payments'),
-        _buildMenuButton(context, 'Transactions', Icons.swap_horiz, '/transactions'),
-      ],
-    );
-  }
-
-  Widget _buildMenuButton(BuildContext context, String title, IconData icon, String route) {
-    return Card(
-      elevation: 4,
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(context, route);
-        },
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 40),
-              const SizedBox(height: 10),
-              Text(title, style: const TextStyle(fontSize: 16)),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

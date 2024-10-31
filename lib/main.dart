@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'routes/app_router.dart'; // Route yapısının bulunduğu dosya
 import 'firebase_options.dart'; // Firebase yapılandırma dosyası
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load();
+  
   // Firebase başlatma işlemi
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
+  
   runApp(const MyApp());
 }
 

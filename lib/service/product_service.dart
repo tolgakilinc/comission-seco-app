@@ -11,17 +11,20 @@ class ProductService {
     required String category, // Ürün grubu (Sebze, Meyve)
     required String unit, // Birim bilgisi
     required String moneyType, // Para birimi bilgisi
+    required double stockQuantity, // Stok miktarı
+    required String notes, // Notlar
   }) async {
     await _firestore.collection('products').add({
       'name': name,
       'purchase_price': purchasePrice,
       'price': salePrice,
-      'category': category, // Ürün grubu kaydediliyor
-      'unit': unit, // Birim bilgisi
-      'money_type': moneyType, // Para birimi bilgisi
-      'stock_quantity': 0.0, // Başlangıçta sıfır stok
-      'purchases': [], // Alış geçmişi
-      'sales': [], // Satış geçmişi
+      'category': category,
+      'unit': unit,
+      'money_type': moneyType,
+      'stock_quantity': stockQuantity,
+      'purchases': [],
+      'sales': [],
+      'notes': notes,
     });
   }
 
@@ -34,18 +37,61 @@ class ProductService {
     required String category, // Ürün grubu (Sebze, Meyve)
     required String unit, // Birim bilgisi
     required String moneyType, // Para birimi bilgisi
+    required double stockQuantity, // Stok miktarı
+    required String notes, // Notlar
   }) async {
     await _firestore.collection('products').doc(productId).update({
       'name': name,
       'purchase_price': purchasePrice,
       'price': salePrice,
-      'category': category, // Ürün grubu güncelleniyor
-      'unit': unit, // Birim bilgisi güncelleniyor
-      'money_type': moneyType, // Para birimi bilgisi güncelleniyor
+      'category': category,
+      'unit': unit,
+      'money_type': moneyType,
+      'stock_quantity': stockQuantity,
+      'notes': notes,
     });
   }
 
-  // Ürünleri listeleme (stream olarak)
+ // Ürün stoklarını artırma (Alış işlemi)
+  Future<void> increaseProductStock(String productId, double amount) async {
+    DocumentSnapshot productSnapshot = await _firestore.collection('products').doc(productId).get();
+    
+    // Stok miktarının doğru şekilde alındığından emin olun (int -> double dönüştürmesi gerekebilir)
+    double currentStock = (productSnapshot['stock_quantity'] as num).toDouble(); 
+    double updatedStock = currentStock + amount;
+
+    await _firestore.collection('products').doc(productId).update({
+      'stock_quantity': updatedStock,
+    });
+  }
+
+  // Ürün stoklarını azaltma (Satış işlemi) ve stok kontrolü
+  Future<bool> decreaseProductStock(String productId, double amount) async {
+    DocumentSnapshot productSnapshot = await _firestore.collection('products').doc(productId).get();
+
+    // Stok miktarının doğru şekilde alındığından emin olun (int -> double dönüştürmesi gerekebilir)
+    double currentStock = (productSnapshot['stock_quantity'] as num).toDouble();
+
+    if (currentStock < amount) {
+      // Eğer stok miktarı yetersizse işlem yapılamaz
+      return false;
+    }
+
+    double updatedStock = currentStock - amount;
+
+    await _firestore.collection('products').doc(productId).update({
+      'stock_quantity': updatedStock,
+    });
+
+    return true;
+  }
+
+  // Ürünü id'ye göre almak için
+  Future<DocumentSnapshot> getProductById(String productId) async {
+    return await _firestore.collection('products').doc(productId).get();
+  }
+
+  // Ürünleri stream olarak almak için
   Stream<QuerySnapshot> getProductsStream() {
     return _firestore.collection('products').snapshots();
   }
@@ -55,23 +101,26 @@ class ProductService {
     await _firestore.collection('products').doc(productId).delete();
   }
 
-  // Ürünün fiyatlarını getir (alış ve satış)
+  // Ürün fiyatlarını alma metodu (alış ve satış fiyatlarını döner)
   Future<Map<String, double>> getProductPrices(String productId) async {
-    DocumentSnapshot productSnapshot = await _firestore.collection('products').doc(productId).get();
-    return {
-      'purchase_price': productSnapshot['purchase_price'],
-      'sale_price': productSnapshot['price'], // Satış fiyatı 'price' alanında tutuluyor
-    };
-  }
+    try {
+      DocumentSnapshot productSnapshot = await _firestore.collection('products').doc(productId).get();
 
-  // Ürünün tüm bilgilerini almak için
-  Future<DocumentSnapshot> getProductById(String productId) async {
-    return await _firestore.collection('products').doc(productId).get();
-  }
+      // Eğer ürün bulunursa alış ve satış fiyatlarını döndür
+      if (productSnapshot.exists) {
+        double purchasePrice = (productSnapshot['purchase_price'] as num).toDouble(); // Alış fiyatı
+        double salePrice = (productSnapshot['price'] as num).toDouble(); // Satış fiyatı
 
-  // Ürünleri getirme
-  Future<List<Map<String, dynamic>>> getProducts() async {
-    QuerySnapshot snapshot = await _firestore.collection('products').get();
-    return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+        return {
+          'purchase_price': purchasePrice,
+          'sale_price': salePrice,
+        };
+      } else {
+        throw Exception('Ürün bulunamadı');
+      }
+    } catch (e) {
+      print("Ürün fiyatları alınırken hata: $e");
+      rethrow;
+    }
   }
 }

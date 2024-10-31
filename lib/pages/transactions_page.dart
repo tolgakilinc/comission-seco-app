@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:seco_app/service/transaction_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart'; // Tarih formatlamak için
+
 class TransactionsPage extends StatefulWidget {
   const TransactionsPage({Key? key}) : super(key: key);
 
@@ -14,8 +16,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
   final TransactionService _transactionService = TransactionService();
 
   // Filtreleme için gerekli değişken
-  String? _selectedFilter =
-      'Hepsi'; // Varsayılan olarak tüm işlemleri gösterir.
+  String? _selectedFilter = 'Hepsi'; // Varsayılan olarak tüm işlemleri gösterir.
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +74,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
               return FutureBuilder(
                 future: Future.wait([
-                  _transactionService
-                      .getCustomerName(transaction['customer_id']),
+                  _transactionService.getCustomerName(transaction['customer_id']),
                   _transactionService.getProductName(transaction['product_id']),
                 ]),
                 builder: (context, AsyncSnapshot<List<String>> namesSnapshot) {
@@ -87,21 +87,22 @@ class _TransactionsPageState extends State<TransactionsPage> {
 
                   final transactionType = transaction['transaction_type'];
                   final double amount = transaction['amount'];
+                  final DateTime transactionDate = (transaction['date'] as Timestamp).toDate();
+                  final String formattedDate = DateFormat('dd/MM/yyyy').format(transactionDate);
+
                   final Color statusColor = transactionType == 'Alış'
                       ? Colors.blue.shade100
                       : Colors.green.shade100;
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                     child: Slidable(
                       key: Key(transaction.id),
                       startActionPane: ActionPane(
                         motion: const StretchMotion(),
                         children: [
                           SlidableAction(
-                            onPressed: (context) =>
-                                _confirmDeleteTransaction(transaction.id),
+                            onPressed: (context) => _confirmDeleteTransaction(transaction.id),
                             backgroundColor: Colors.red,
                             icon: Icons.delete,
                             label: 'Sil',
@@ -152,14 +153,13 @@ class _TransactionsPageState extends State<TransactionsPage> {
                                   const SizedBox(height: 5),
                                   Text('İşlem Miktarı: $amount'),
                                   const SizedBox(height: 5),
-                                  Text(
-                                      'Tutar: ${(amount * transaction['price']).toStringAsFixed(2)} ₺'),
+                                  Text('Tutar: ${(amount * transaction['price']).toStringAsFixed(2)} ₺'),
                                   const SizedBox(height: 5),
-                                  Text(
-                                      'Ödeme Durumu: ${transaction['status']}'),
+                                  Text('Ödeme Durumu: ${transaction['status']}'),
                                   const SizedBox(height: 5),
-                                  Text(
-                                      'Ödeme Tipi: ${transaction['payment_type']}'),
+                                  Text('Ödeme Tipi: ${transaction['payment_type']}'),
+                                  const SizedBox(height: 5),
+                                  Text('Tarih: $formattedDate'), // Tarih bilgisi eklendi
                                 ],
                               ),
                             ),
@@ -180,8 +180,7 @@ class _TransactionsPageState extends State<TransactionsPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.pushNamed(context,
-              '/transactions/edit'); // Yeni işlem eklemek için yönlendirme
+          Navigator.pushNamed(context, '/transactions/edit'); // Yeni işlem eklemek için yönlendirme
         },
         child: const Icon(Icons.add),
       ),
