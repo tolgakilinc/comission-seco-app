@@ -44,3 +44,33 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Flutter/Dart/Android iOS related
+**/ios/.generated/
+**/android/app/*.keystore
+**/android/key.properties
+
+# Generated Plugin Registrant (for Flutter plugins)
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS related
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/Flutter.podspec
+
+# Web related
+**/.dart_tool/flutter_build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# Other IDE files (optional)
+*.vscode/
+
+# macOS specific files
+**/Pods/
+*.xcworkspace
+*.xcuserstate
+
+# Temporary or system files
+*.tmp
+*.temp
+*.pid
