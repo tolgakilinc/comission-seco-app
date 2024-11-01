@@ -1,78 +1,86 @@
-## seco_app
-Komisyon bazlı firmalar için stok, müşteri ve ödeme takibi sağlayan bir Flutter projesi.
+# seco_app
+A Flutter project for managing inventory, customers, and payment tracking for commission-based firms.
 
-**Proje Özeti**
-Bu uygulama, komisyon firmalarının ürün, stok, müşteri ve ödeme takibini kolayca yapabilmesi için geliştirilmiştir. Gerçek zamanlı veri yönetimi için Firebase kullanarak gelir, gider ve bakiye takibini basit bir arayüzle sunar. Uygulama Flutter ile geliştirilmiştir ve komisyon bazlı bir işletmenin ihtiyaç duyabileceği çeşitli sayfaları içerir.
+## Project Overview
+This application is designed to help commission firms easily manage products, inventory, customers, and payments. Using Firebase for real-time data management, it provides a straightforward interface for tracking income, expenses, and balance. The app is built with Flutter and includes various pages to support the needs of a commission-based business.
 
-![login](https://github.com/user-attachments/assets/107e19b1-e672-476f-b5f2-6b3343b506ec)
+## Features
+• Income and Expense Tracking: Monitor company income and expenses with an up-to-date balance display.
 
-**Ana sayfa:** Gelir, gider ve bakiye genel görünümü.
+• Product Management: Manage a list of products (e.g., fruits, vegetables) sold by the firm with stock management capabilities.
 
-**Özellikler**
-Gelir ve Gider Takibi: Firmanın gelir ve giderlerini izleyerek güncel bakiyeyi görüntüleme.
+• Inventory Tracking: Update stock quantities and track product inventory in real-time.
 
+• Customer Management: Add, edit, and manage customers.
 
-![menu](https://github.com/user-attachments/assets/e03c9039-b0ef-4b8e-9323-198944a8eefa)
+• Payment Tracking: Track received payments and monitor upcoming payment dates.
 
+• Transaction History: View and archive detailed transaction history.
 
-**Ürün Yönetimi:** Firma tarafından satılan ürünlerin (meyve, sebze vb.) listesi ve stok bilgilerini yönetme.
+• Firebase Integration: Real-time data synchronization and secure storage through Firebase.
 
-![product](https://github.com/user-attachments/assets/4848e4ca-0be6-4356-b3f0-357b3a1dfbc3)
+## Installation
+This project serves as a starting point for Flutter applications.
 
+Follow these steps to set up the project locally:
 
-
-
-**Stok Takibi:** Ürün miktarlarını güncelleme ve stok seviyelerini gerçek zamanlı olarak izleme.
-
-![stock](https://github.com/user-attachments/assets/c04d5558-afb7-4c92-b3a5-6bb9ee973a72)
-
-**Müşteri Yönetimi:** Firma müşterilerini kaydetme, düzenleme ve listeleme.
-
-
-![customer](https://github.com/user-attachments/assets/da5453fb-c4ef-46a7-8cd1-41058c3ba485)
-
-
-**Ödeme Takibi:** Müşterilerden alınan ödemeler ve yaklaşan ödeme tarihlerini görüntüleme.
-
-
-**İşlem Geçmişi:** Yapılan tüm işlemleri detaylı bir şekilde görüntüleme ve arşivleme.
-
-
-![transaction](https://github.com/user-attachments/assets/7a581afe-3b45-479e-b74a-30a2621a28d9)
-
-**Firebase Entegrasyonu:** Gerçek zamanlı veri senkronizasyonu ve güvenli depolama için Firebase kullanımı.
-
-**Kurulum**
-Bu proje, Flutter uygulamaları için başlangıç noktasıdır.
-
-Projeyi yerel ortamınıza kurmak için aşağıdaki adımları takip edin:
-
-**Gereksinimler**
+**Prerequisites**
 
 • Flutter SDK
-• Firebase hesabı ve proje ayarları
-• Kurulum Adımları
-• Depoyu Klonlayın
+
+• Firebase account and project setup
+
+**Installation Steps**
+
+1. Clone the Repository
+
+``` 
+git clone https://github.com/tolgakilinc/comission-seco-app.git
+cd comission-seco-app 
+```
+
+2. Install Dependencies
+
+    Run the following command to get the required Flutter dependencies:
+
+``` 
+flutter pub get
+```
+
+3. Configure Firebase
+
+    Set up Firebase by adding the following configuration files to your project:
+
+    • Place the google-services.json file in the android/app directory for Android.
+
+    • Place the GoogleService-Info.plist file in the ios/Runner directory for iOS.
+
+4. Run the Application
+
+    Start the app with the command:
+
+```
+flutter run
+```
+
+## Technologies Used
+
+• Flutter: For the app’s UI and core functionality.
+
+• Firebase: For real-time database and user management.
+
+• Dart: Programming language used by Flutter.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for more details.
+
+## Screenshots
+
+![login](https://github.com/user-attachments/assets/774f7d0e-099a-42da-9a28-e13865c37626) ![menu](https://github.com/user-attachments/assets/a4c9b18a-611c-47ab-9808-4fae5337d617) 
+
+![product](https://github.com/user-attachments/assets/3b3ff05b-98e1-4de2-a50f-0aeae76e57c6) ![stock](https://github.com/user-attachments/assets/2ec74d6e-4ee0-41b1-9b6c-4d10c58dd338)
+
+![customer](https://github.com/user-attachments/assets/1f7c7315-8557-4f8d-8585-7849be9169a2) ![curd](https://github.com/user-attachments/assets/53fd4ce3-5928-4b9d-9aca-163701ee31cb)
 
 
-```git clone https://github.com/tolgakilinc/comission-seco-app.git```
-```cd comission-seco-app```
-Bağımlılıkları Yükleyin Gerekli Flutter bağımlılıklarını yüklemek için aşağıdaki komutu çalıştırın:
-
-
-```flutter pub get```
-Firebase Yapılandırması Firebase projenizi kurun ve aşağıdaki dosyaları projeye ekleyin:
-
-**google-services.json** dosyasını Android için android/app dizinine ekleyin.
-**GoogleService-Info.plist** dosyasını iOS için ios/Runner dizinine ekleyin.
-Uygulamayı Çalıştırın Uygulamayı başlatmak için şu komutu çalıştırın:
-
-```flutter run```
-
-**Kullanılan Teknolojiler**
-• Flutter: Uygulamanın arayüz ve temel işleyişi için.
-• Firebase: Gerçek zamanlı veritabanı ve kullanıcı yönetimi için.
-• Dart: Flutter için kullanılan programlama dili.
-
-**Lisans**
-Bu proje MIT Lisansı ile lisanslanmıştır. Detaylar için LICENSE dosyasını inceleyin.
